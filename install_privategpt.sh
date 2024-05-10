@@ -100,7 +100,7 @@ sed -i "/            return ContextChatEngine.from_defaults(/a \                
 check_file "./scripts/setup"
 backup_file "./scripts/setup"
 # echo "Patching 'setup' in './scripts/' directory:"
-### Add a token hugging_face for accessing to limited repositories:
+### Add a token hugging_face for accessing to limited repositories (replace 'my_token' to real token from https://huggingface.co/):
 ### ### add ", login" to line: "from huggingface_hub import hf_hub_download, snapshot_download" and use it after line "if __name__ == '__main__':" --> login(token="<my_token>")
 sed -i "s/from huggingface_hub import hf_hub_download, snapshot_download/from huggingface_hub import hf_hub_download, snapshot_download, login/" ./scripts/setup
 sed -i "/if __name__ == '__main__':/a \    login(token='my_token')" ./scripts/setup
