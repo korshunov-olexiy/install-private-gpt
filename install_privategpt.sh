@@ -49,7 +49,7 @@ if ! git clone https://github.com/imartinez/privateGPT.git; then
 fi
 
 print_message "Go to the 'privateGPT' directory:"
-cd privateGPT || exit 1
+cd privateGPT/ || exit 1
 
 print_message "Create virtual environment to 'env' directory:"
 if ! python -m venv env; then
@@ -105,6 +105,8 @@ backup_file "./scripts/setup"
 sed -i "s/from huggingface_hub import hf_hub_download, snapshot_download/from huggingface_hub import hf_hub_download, snapshot_download, login/" ./scripts/setup
 sed -i "/if __name__ == '__main__':/a \    login(token='my_token')" ./scripts/setup
 
+# Download Embedding and LLM models
+poetry run scripts/setup
 
 print_message "Start PrivateGPT:"
 PGPT_PROFILES=ollama make run
