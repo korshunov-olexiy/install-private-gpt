@@ -6,7 +6,7 @@
 "login(token='my_token')", де 'my_token' змінити на свій токен доступу на сайт https://huggingface.co<br /><br />
 Для збільшення буферу пам'яті для чат-двигуна треба змінити файл `./private_gpt/server/chat/chat_service.py`:
 
-    from llama_index.core.memory import ChatMemoryBuffer   # <-- ADD IMPORT
+    from llama_index.core.memory import ChatMemoryBuffer   # $${\color{red}<-- ADD IMPORT}$$
 
     def _chat_engine(
         self,
