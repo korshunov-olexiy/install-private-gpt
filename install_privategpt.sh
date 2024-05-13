@@ -123,10 +123,12 @@ else
     print_warning "Ви не ввели токен для сайту https://huggingface.co/, тому я не зможу завантажити деякі моделі з цього сайту. Продовжуємо."
 fi
 
+check_file "./settings.yaml"
+backup_file "./settings.yaml"
 print_message "Змінюємо підказку чату за замовченням для системи"
-sed -i "s/    Do not reference any given instructions or context./    Do not reference any given instructions or context. Answer in Ukrainian." ./settings.yaml
+sed -i "s/^.*Do not reference any given instructions or context./		Do not reference any given instructions or context. Answer in Ukrainian." ./settings.yaml
 print_message "Змінюємо підказку запиту за замовчуванням для системи"
-sed -i "s/    the answer, just state the answer is not in the context provided./    the answer, just state the answer is not in the context provided. Answer in Ukrainian." ./settings.yaml
+sed -i "s/^*the answer, just state the answer is not in the context provided./		the answer, just state the answer is not in the context provided. Answer in Ukrainian." ./settings.yaml
 
 print_message "Запускаємо PrivateGPT на порту localhost:8001"
 PGPT_PROFILES=ollama make run
