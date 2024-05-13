@@ -1,7 +1,11 @@
 #!/bin/bash
 
 function print_message {
-    echo -e "\e[1;34m$1\e[0m"
+    echo -e "\e[32m$1\e[0m"
+}
+
+function print_warning {
+    echo -e "\e[33m$1\e[0m"
 }
 
 function print_error {
@@ -10,23 +14,27 @@ function print_error {
 
 function check_command {
     if ! command -v "$1" &> /dev/null; then
-        print_error "Command '$1' not found. Exiting."
+        print_error "Команда '$1' не знайдена. Аварійне завершення скрипта."
         exit 1
     fi
 }
 
 function check_file {
     if [ ! -f "$1" ]; then
-        print_error "File '$1' not found. Exiting."
+        print_error "Файл '$1' не знайдений. Аварійне завершення скрипта."
         exit 1
     fi
 }
 
 function backup_file {
+    print_message "Створюємо резервну копію файлу: $1.bak"
     cp "$1" "$1.bak"
 }
 
-# Check necessary commands
+function activate_env {
+  source "$1"/bin/activate
+}
+
 check_command curl
 check_command git
 check_command python
@@ -34,79 +42,91 @@ check_command pip
 check_command make
 check_command sed
 
-print_message "Download and install Ollama Server:"
-if ! curl -fsSL https://ollama.com/install.sh | sh; then
-    print_error "Failed to download and install Ollama Server. Exiting."
-    exit 1
+if ! command -v "ollama" &> /dev/null; then
+  print_message "Завантажуємо та встановлюємо сервер Ollama:"
+  if ! curl -fsSL https://ollama.com/install.sh | sh; then
+      print_error "Failed to download and install Ollama Server. Exiting."
+      exit 1
+  fi
 fi
 
 check_command ollama
 
-print_message "Clone repository:"
 if ! git clone https://github.com/imartinez/privateGPT.git; then
-    print_error "Failed to clone privateGPT repository. Exiting."
+   print_error "Помилка клонування репозиторію privateGPT. Аварійне завершення скрипта."
+   exit 1
+fi
+
+print_message "Переходимо в теку 'privateGPT':"
+cd privateGPT || exit 1
+
+print_message "Створення віртуального середовища в теці 'env':"
+if ! python3 -m venv env; then
+    print_error "Помилка створення віртуального середовища. Аварійне завершення скрипта."
     exit 1
 fi
 
-print_message "Go to the 'privateGPT' directory:"
-cd privateGPT/ || exit 1
+env_activate=$(pwd)/env
 
-print_message "Create virtual environment to 'env' directory:"
-if ! python -m venv env; then
-    print_error "Failed to create virtual environment. Exiting."
+print_message "Активація віртуального середовища:"
+activate_env $env_activate
+
+if [[ "$VIRTUAL_ENV" != $(pwd)/env ]]; then
+    print_error "Помилка активації віртуального середовища. Аварійне завершення скрипта."
     exit 1
 fi
 
-print_message "Activate virtual environment:"
-source env/bin/activate || exit 1
-
-# echo "Install poetry if not exists:"
 if ! command -v poetry &> /dev/null; then
-    print_message "Installing Poetry..."
+    print_message "Встановлення менеджера Poetry..."
     pip install poetry
 fi
 
-# "Install dependencies:"
 if ! poetry install --extras "ui llms-ollama embeddings-ollama vector-stores-qdrant"; then
-    print_error "Failed to install dependencies. Exiting."
+    print_error "Не вдалося встановити залежності. Аварійне завершення скрипта."
     exit 1
 fi
 
-# "Start Ollama Server:"
-if ! ollama serve; then
-    print_error "Failed to start Ollama Server. Exiting."
-    exit 1
+if systemctl is-active --quiet ollama; then
+    echo "Сервіс 'ollama' запущений."
+else
+    echo "При запиті системи введіть пароль адміністратора для запуску сервера ollama: "
+    sudo systemctl start ollama
 fi
 
-# "Download Mistral Language model:"
 if ! ollama pull mistral; then
-    print_error "Failed to download Mistral Language model. Continuing without it."
+    print_warning "Не вдалося завантажити модель Mistral Language. Продовжуємо без неї."
 fi
 
-# "Download embedding text model:"
 if ! ollama pull nomic-embed-text; then
-    print_error "Failed to download embedding text model. Continuing without it."
+    print_warning "Не вдалося завантажити модель вбудовування тексту. Продовжуємо без неї."
 fi
 
 check_file "./private_gpt/server/chat/chat_service.py"
 backup_file "./private_gpt/server/chat/chat_service.py"
-# echo "Patching 'chat_service.py' in './private_gpt/server/chat/' directory:"
-### Create a larger memory buffer for the chat engine (from ChatMemoryBuffer method)
-### ### add import "from llama_index.core.memory import ChatMemoryBuffer" at the beginning of the file; insert line "memory = ChatMemoryBuffer.from_defaults(token_limit=8192)" before line: "return ContextChatEngine.from_defaults(" and insert line "memory=memory," before this line.
-sed -i "/from llama_index.core.indices import VectorStoreIndex/i from llama_index.core.memory import ChatMemoryBuffer" ./private_gpt/server/chat/chat_service.py
+
+print_message "Модифікуємо файл '/.private_gpt/server/chat/chat_service.py'"
+sed -i "/from llama_index.core.indices import VectorStoreIndex/i \from llama_index.core.memory import ChatMemoryBuffer" ./private_gpt/server/chat/chat_service.py
 sed -i "/            return ContextChatEngine.from_defaults(/i \            memory = ChatMemoryBuffer.from_defaults(token_limit=8192)" ./private_gpt/server/chat/chat_service.py
 sed -i "/            return ContextChatEngine.from_defaults(/a \                memory=memory," ./private_gpt/server/chat/chat_service.py
 
 check_file "./scripts/setup"
 backup_file "./scripts/setup"
-# echo "Patching 'setup' in './scripts/' directory:"
-### Add a token hugging_face for accessing to limited repositories (replace 'my_token' to real token from https://huggingface.co/):
-### ### add ", login" to line: "from huggingface_hub import hf_hub_download, snapshot_download" and use it after line "if __name__ == '__main__':" --> login(token="<my_token>")
-sed -i "s/from huggingface_hub import hf_hub_download, snapshot_download/from huggingface_hub import hf_hub_download, snapshot_download, login/" ./scripts/setup
-sed -i "/if __name__ == '__main__':/a \    login(token='my_token')" ./scripts/setup
 
-# Download Embedding and LLM models
-poetry run scripts/setup
+read -p "Якщо у вас є токен від сайту https://huggingface.co/ вставте його зараз, або натисніть [Enter] для продовження: " token_value
+if [ -n "$token_value" ]; then
+    print_message "Модифікуємо файл './scripts/setup'"
+    sed -i "s/from huggingface_hub import hf_hub_download, snapshot_download/from huggingface_hub import hf_hub_download, snapshot_download, login/" ./scripts/setup
+    sed -i "/if __name__ == '__main__':/a \    login(token='$token_value')" ./scripts/setup
+    print_message "Завантажуємо моделі Embedding та LLM"
+    poetry run scripts/setup
+else
+    print_warning "Ви не ввели токен для сайту https://huggingface.co/, тому я не зможу завантажити деякі моделі з цього сайту. Продовжуємо."
+fi
 
-print_message "Start PrivateGPT:"
+print_message "Змінюємо підказку чату за замовченням для системи"
+sed -i "s/    Do not reference any given instructions or context./    Do not reference any given instructions or context. Answer in Ukrainian." ./settings.yaml
+print_message "Змінюємо підказку запиту за замовчуванням для системи"
+sed -i "s/    the answer, just state the answer is not in the context provided./    the answer, just state the answer is not in the context provided. Answer in Ukrainian." ./settings.yaml
+
+print_message "Запускаємо PrivateGPT на порту localhost:8001"
 PGPT_PROFILES=ollama make run
