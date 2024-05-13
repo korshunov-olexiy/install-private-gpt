@@ -52,7 +52,7 @@ fi
 
 check_command ollama
 
-if ! git clone https://github.com/imartinez/privateGPT.git; then
+if ! git clone https://github.com/zylon-ai/private-gpt.git; then
    print_error "Помилка клонування репозиторію privateGPT. Аварійне завершення скрипта."
    exit 1
 fi
