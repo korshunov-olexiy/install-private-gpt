@@ -1,10 +1,9 @@
-Для можливості завантаження обмежених репозиторіїв треба додати token для сайту huggingface.co, для чого змінити файл `./scripts/setup`:
-змінити рядок: "from huggingface_hub import hf_hub_download, snapshot_download"
-додати імпорт "login", щоб вийшло таким чином:
-"from huggingface_hub import hf_hub_download, snapshot_download, login"
-Потім, всередині "if __name__ == '__main__':" додати реєстрацію на сайті:
-"login(token='my_token')", де 'my_token' змінити на свій токен доступу на сайт https://huggingface.co
-
+Для можливості завантаження обмежених репозиторіїв треба додати token для сайту huggingface.co, для чого змінити файл `./scripts/setup`:<br />
+змінити рядок: "from huggingface_hub import hf_hub_download, snapshot_download",<br />
+додати імпорт "login", щоб вийшло таким чином:<br />
+"from huggingface_hub import hf_hub_download, snapshot_download, login"<br />
+Потім, всередині "if __name__ == '__main__':" додати реєстрацію на сайті:<br />
+"login(token='my_token')", де 'my_token' змінити на свій токен доступу на сайт https://huggingface.co<br /><br />
 Для збільшення буферу пам'яті для чат-двигуна треба змінити файл `./private_gpt/server/chat/chat_service.py`:
 
     from llama_index.core.memory import ChatMemoryBuffer   # <-- ADD IMPORT
